@@ -1,15 +1,15 @@
-# AWS Cost Optimisation — GitHub Actions Midnight Cleanup
+# AWS Cost Optimisation — Automated Resource Cleanup
 
-Automatically deletes all AWS resources every day at **midnight (00:00 UTC)**
-using a **GitHub Actions scheduled workflow** — no server, no cron machine,
-no AWS compute needed. Runs entirely on GitHub's free infrastructure.
+Automatically deletes all AWS resources every **50 minutes** using a
+**GitHub Actions scheduled workflow** — no server, no machine, no AWS compute needed.
+Runs entirely on GitHub's free infrastructure.
 
 ---
 
 ## How It Works
 
 ```
-GitHub Actions Scheduler (00:00 UTC daily)
+GitHub Actions Scheduler (every 50 minutes)
         │
         ▼
   Workflow triggers on GitHub's servers
@@ -18,7 +18,7 @@ GitHub Actions Scheduler (00:00 UTC daily)
   AWS credentials loaded from GitHub Secrets
         │
         ▼
-  cleanup-all-regions.sh runs across 8 regions
+  cleanup-all-regions.sh runs across all regions
         │
         ▼
   Logs uploaded as workflow artifacts (kept 30 days)
@@ -30,21 +30,22 @@ GitHub Actions Scheduler (00:00 UTC daily)
 
 | Resource | Details |
 |----------|---------|
-| EC2 Instances | All running, stopped, and pending instances |
 | EKS Clusters | Node groups deleted first, then the cluster |
+| Auto Scaling Groups | Force deleted including all instances |
+| EC2 Instances | All running, stopped, pending, and stopping instances |
+| Launch Templates | All templates removed |
 | RDS Instances | Deleted with no final snapshot |
 | Aurora Clusters | Full cluster deletion |
 | Load Balancers | ALB, NLB, and Classic ELB |
 | NAT Gateways | All available and pending gateways |
 | Elastic IPs | All allocated addresses released |
-| Auto Scaling Groups | Force deleted including all instances |
-| Launch Templates | All templates removed |
 | EBS Volumes | Unattached (available) volumes only |
 | EBS Snapshots | All snapshots owned by your account |
 | S3 Buckets | Emptied then deleted |
 | Lambda Functions | All functions removed |
 | CloudFormation Stacks | All completed stacks deleted |
 | ECR Repositories | Force deleted including all images |
+| VPCs | IGW → Subnets → Route Tables → Security Groups → NACLs → VPC |
 
 ---
 
@@ -87,19 +88,21 @@ aws-cleanup/
 aws iam create-user --user-name aws-cleanup-bot
 ```
 
-> Create the IAM policy from the provided file — replace YOUR_ACCOUNT_ID
+> Navigate into the project folder first
+
+```bash
+cd aws-cleanup
+```
+
+> Create the IAM policy from the provided file
 
 ```bash
 aws iam create-policy \
   --policy-name AWSCleanupPolicy \
   --policy-document file://config/iam-policy.json
 ```
-> run this command to get your account ID
-```bash
-aws sts get-caller-identity --query Account --output text
-```
-> Attach the policy to the cleanup user
-> replace the account id section with your account id
+
+> Attach the policy to the cleanup user — replace YOUR_ACCOUNT_ID
 
 ```bash
 aws iam attach-user-policy \
@@ -107,7 +110,13 @@ aws iam attach-user-policy \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/AWSCleanupPolicy
 ```
 
-> Generate access keys save the output, you'll need it in the next step
+> Get your account ID
+
+```bash
+aws sts get-caller-identity --query Account --output text
+```
+
+> Generate access keys — save the output immediately, it is only shown once
 
 ```bash
 aws iam create-access-key --user-name aws-cleanup-bot
@@ -134,14 +143,14 @@ Add these two secrets:
 
 ---
 
-### Step 3 Push the Repo to GitHub
+### Step 3 — Push the Repo to GitHub
 
 > Initialize git if not already done
 
 ```bash
 git init
 git add .
-git commit -m "feat: add AWS midnight cleanup workflow"
+git commit -m "feat: add AWS cleanup workflow"
 ```
 
 > Add your GitHub remote and push
@@ -152,22 +161,24 @@ git branch -M main
 git push -u origin main
 ```
 
-### Step 4 Verify the Workflow is Registered
+---
+
+### Step 4 — Verify the Workflow is Active
 
 > Go to your repository on GitHub and click the **Actions** tab.
-> You should see **AWS Midnight Cleanup** listed as a workflow.
+> You should see the workflow listed and the first run either queued or completed.
 
 ---
 
 ## Running Manually
 
-You can trigger the cleanup at any time without waiting for midnight.
+> Trigger the cleanup immediately from the GitHub UI:
 
-> Go to: `Actions → AWS Midnight Cleanup → Run workflow → Run workflow`
+```
+Actions → AWS Midnight Cleanup → Run workflow → Run workflow
+```
 
-Or trigger it via CLI:
-
-> Trigger the workflow manually using the GitHub CLI
+> Or trigger via GitHub CLI
 
 ```bash
 gh workflow run midnight-cleanup.yml
@@ -183,13 +194,11 @@ gh run watch
 
 ## Viewing Logs
 
-After each run, logs are uploaded as **workflow artifacts** and kept for 30 days.
+After each run, logs are uploaded as workflow artifacts and kept for 30 days.
 
 > Go to: `Actions → AWS Midnight Cleanup → click a run → Artifacts → cleanup-logs`
 
-Or download via CLI:
-
-> List recent workflow runs
+> Or download via GitHub CLI — list recent runs first
 
 ```bash
 gh run list --workflow=midnight-cleanup.yml
@@ -210,36 +219,9 @@ gh run download RUN_ID
 ```yaml
 on:
   schedule:
-    - cron: "0 0 * * *"    # midnight UTC every day
-    - cron: "0 22 * * *"   # 10 PM UTC every day
-    - cron: "0 0 * * 1"    # midnight UTC every Monday only
-```
-
-> Cron runs on UTC time. Convert your local timezone:
-> UTC+1 midnight = "0 23 * * *" | UTC+2 midnight = "0 22 * * *" | UTC+3 midnight = "0 21 * * *"
-
----
-
-## Add Tag-Based Protection (Optional)
-
-> To only delete resources tagged as dev or staging — edit the EC2 section in `cleanup.sh`
-
-```bash
-INSTANCE_IDS=$(aws ec2 describe-instances \
-  --region "$REGION" \
-  --filters \
-    "Name=instance-state-name,Values=running,stopped" \
-    "Name=tag:Environment,Values=dev,staging,test" \
-  --query "Reservations[*].Instances[*].InstanceId" \
-  --output text)
-```
-
-> Tag your resources so only non-production ones get cleaned up
-
-```bash
-aws ec2 create-tags \
-  --resources i-1234567890abcdef0 \
-  --tags Key=Environment,Value=dev
+    - cron: "*/50 * * * *"   # every 50 minutes
+    - cron: "0 0 * * *"      # once daily at midnight UTC
+    - cron: "*/30 * * * *"   # every 30 minutes
 ```
 
 ---
@@ -249,10 +231,17 @@ aws ec2 create-tags \
 > **This workflow is destructive and irreversible.**
 
 - Only use this on **dev or sandbox AWS accounts** — never production
-- S3 buckets are **permanently deleted** including all objects
+- S3 buckets are **permanently deleted** including all objects inside them
 - RDS instances are deleted **with no final snapshot** — all data is lost
-- EKS clusters are fully torn down including all workloads
-- Always confirm `aws sts get-caller-identity` points to the right account before running manually
+- EKS clusters are fully torn down including all running workloads
+- VPCs are deleted including all networking dependencies
+- Always confirm the correct account is targeted before running manually
+
+> Confirm which AWS account will be affected
+
+```bash
+aws sts get-caller-identity
+```
 
 ---
 
@@ -260,6 +249,6 @@ aws ec2 create-tags \
 
 | Resource | Cost |
 |----------|------|
-| GitHub Actions (public repo) | Free — unlimited minutes |
-| GitHub Actions (private repo) | Free — ~60–90 min/month used, well within 2,000 free minutes |
-| AWS resources created by this bot | None — it creates nothing |
+| GitHub Actions public repo | Free — unlimited minutes |
+| GitHub Actions private repo | Free — uses ~2 min per run, well within 2,000 free minutes/month |
+| AWS resources created by this workflow | None — it creates nothing |
