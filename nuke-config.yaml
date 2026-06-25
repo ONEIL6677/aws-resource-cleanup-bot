@@ -1,0 +1,17 @@
+# nuke-config.yaml
+regions:
+  - global
+  - us-east-1
+  - us-west-2
+  # Add any other active regions you want to clean up here
+
+# Safely prevent accidental targeting of production accounts
+account-blocklist:
+  - "999999999999" # Replace with your production account ID if you have one
+
+accounts:
+  "123456789012": # REPLACE THIS WITH YOUR TARGET AWS ACCOUNT ID
+    filters:
+      IAMUser:
+        - type: "glob"
+          value: "*" # This rule explicitly catches and protects ALL IAM users

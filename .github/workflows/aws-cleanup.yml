@@ -1,0 +1,32 @@
+# .github/workflows/aws-cleanup.yml
+name: Daily AWS Resource Nuke
+
+on:
+  schedule:
+    # Runs everyday at exactly 22:00 UTC (10:00 PM)
+    - cron: '0 22 * * *'
+  workflow_dispatch: # Allows you to trigger this cleanup manually from the UI
+
+jobs:
+  aws-nuke-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Clone repository contents into the runner space
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Authenticate into AWS safely using repository secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Step 3: Grant execution permission to our custom shell script
+      - name: Make script executable
+        run: chmod +x ./scripts/cleanup.sh
+
+      # Step 4: Execute the shell script to nuke resources
+      - name: Run Cleanup Script
+        run: ./scripts/cleanup.sh
