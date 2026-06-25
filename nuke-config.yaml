@@ -1,5 +1,6 @@
 bypass-alias-check-accounts:
   - "098217739820"
+
 regions:
   - global
   - us-east-1
@@ -11,7 +12,6 @@ regions:
   - ap-southeast-1
   - ap-northeast-1
 
-# Clear out or use a dummy placeholder for the blocklist
 account-blocklist:
   - "000000000000" 
 
@@ -21,13 +21,6 @@ accounts:
       IAMUser:
         - type: "glob"
           value: "*" 
-accounts:
-  "098217739820":
-    filters:
-      IAMUser:
-        - type: "glob"
-          value: "*"
-      # Add these lines to skip scanning millions of objects/items:
       S3Object:
         - type: "glob"
           value: "*"
