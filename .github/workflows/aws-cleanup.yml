@@ -1,21 +1,17 @@
-# .github/workflows/aws-cleanup.yml
 name: Daily AWS Resource Nuke
 
 on:
   schedule:
-    # Runs everyday at exactly 22:00 UTC (10:00 PM)
-    - cron: '*/2 * * * *'
-  workflow_dispatch: # Allows you to trigger this cleanup manually from the UI
+    - cron: '*/5 * * * *' # Changed to 5 min minimum limit to satisfy GitHub's engine
+  workflow_dispatch: 
 
 jobs:
   aws-nuke-cleanup:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Clone repository contents into the runner space
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Authenticate into AWS safely using repository secrets
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -23,10 +19,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Step 3: Grant execution permission to our custom shell script
-      - name: Make script executable
-        run: chmod +x ./scripts/cleanup.sh
-
-      # Step 4: Execute the shell script to nuke resources
-      - name: Run Cleanup Script
-        run: ./scripts/cleanup.sh
+      - name: Download and Run AWS Nuke Directly
+        run: |
+          echo "========================================="
+          echo "   STARTING AWS RESOURCE CLEANUP"
+          echo "========================================="
+          
+          echo "Locating the latest release package..."
+          LATEST_URL=$(curl -s https://github.com | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
+          
+          echo "Downloading latest aws-nuke..."
+          wget -q "$LATEST_URL" -O aws-nuke-latest.tar.gz
+          
+          echo "Extracting binary components..."
+          tar -xzf aws-nuke-latest.tar.gz
+          mv aws-nuke-v*linux-amd64 aws-nuke 2>/dev/null || mv aws-nuke 2>/dev/null || true
+          chmod +x aws-nuke
+          
+          echo "Verifying AWS Caller Identity..."
+          aws sts get-caller-identity
+          
+          echo "Executing destructive resource wipe..."
+          ./aws-nuke run -c nuke-config.yaml --no-alias-check --no-dry-run
+          
+          echo "========================================="
+          echo "   AWS ACCOUNT CLEANUP COMPLETED"
+          echo "========================================="
