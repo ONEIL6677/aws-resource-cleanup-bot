@@ -13,6 +13,13 @@ wget -q https://github.com
 
 # 2. Extract the binary file
 tar -xzf aws-nuke-v2.25.0-linux-amd64.tar.gz
+# The extracted binary is usually named exactly like this:
+mv aws-nuke-v2.25.0-linux-amd64 aws-nuke
+chmod +x aws-nuke
+
+
+# 2. Extract the binary file
+tar -xzf aws-nuke-v2.25.0-linux-amd64.tar.gz
 mv aws-nuke-v2.25.0-linux-amd64 aws-nuke
 chmod +x aws-nuke
 
