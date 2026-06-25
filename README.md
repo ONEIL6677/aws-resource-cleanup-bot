@@ -1,39 +1,265 @@
-# Automated AWS Account Cleanup
+# AWS Cost Optimisation — GitHub Actions Midnight Cleanup
 
-This repository automates the removal of all active AWS cloud infrastructure resources daily at **10:00 PM UTC** while ensuring all core **IAM Users remain completely safe and untouched**.
+Automatically deletes all AWS resources every day at **midnight (00:00 UTC)**
+using a **GitHub Actions scheduled workflow** — no server, no cron machine,
+no AWS compute needed. Runs entirely on GitHub's free infrastructure.
 
-## Architecture Components
-1. `nuke-config.yaml`: Sets targets and specifies the global exclusion filter for IAM Users.
-2. `scripts/cleanup.sh`: Bash script that provisions the open-source execution binary (`aws-nuke`).
-3. `.github/workflows/aws-cleanup.yml`: Automated GitHub engine runner executed on a cron schedule.
+---
 
-## Setup Instructions
+## How It Works
 
-### Step 1: Update Configuration Targets
-1. Open `nuke-config.yaml`.
-2. Locate the line `"123456789012":` and replace it with your **actual 12-digit AWS Account ID**.
-3. (Optional) Adjust your targeted `regions:` 
+```
+GitHub Actions Scheduler (00:00 UTC daily)
+        │
+        ▼
+  Workflow triggers on GitHub's servers
+        │
+        ▼
+  AWS credentials loaded from GitHub Secrets
+        │
+        ▼
+  cleanup-all-regions.sh runs across 8 regions
+        │
+        ▼
+  Logs uploaded as workflow artifacts (kept 30 days)
+```
 
-### Step 2: Configure Github Secrets
-To execute destructive calls against your cloud panel safely, you must provide API key credentials to GitHub.
-1. Navigate to your GitHub repository dashboard.
-2. Click **Settings** -> **Secrets and variables** -> **Actions**.
-3. Click **New repository secret** and append the following variables:
+---
 
-| Secret Name | Value Origin |
-| ----------- | ------------ |
-| `AWS_ACCESS_KEY_ID` | Your Administrator IAM user Access Key ID |
-| `AWS_SECRET_ACCESS_KEY` | Your Administrator IAM user Secret Access Key |
+## What Gets Deleted
 
-### Step 3: Set an AWS Account Alias (Mandatory Requirement)
-`aws-nuke` strictly refuses to clean any account unless it has a text alias assigned to it. This design structure prevents users from accidentally deleting default root accounts.
-1. Log into your AWS Console interface.
-2. Navigate to the **IAM Dashboard**.
-3. Under **AWS Account Details**, click **Create** next to "Account Alias".
-4. Set any text name you prefer (e.g., `my-sandbox-account`).
+| Resource | Details |
+|----------|---------|
+| EC2 Instances | All running, stopped, and pending instances |
+| EKS Clusters | Node groups deleted first, then the cluster |
+| RDS Instances | Deleted with no final snapshot |
+| Aurora Clusters | Full cluster deletion |
+| Load Balancers | ALB, NLB, and Classic ELB |
+| NAT Gateways | All available and pending gateways |
+| Elastic IPs | All allocated addresses released |
+| Auto Scaling Groups | Force deleted including all instances |
+| Launch Templates | All templates removed |
+| EBS Volumes | Unattached (available) volumes only |
+| EBS Snapshots | All snapshots owned by your account |
+| S3 Buckets | Emptied then deleted |
+| Lambda Functions | All functions removed |
+| CloudFormation Stacks | All completed stacks deleted |
+| ECR Repositories | Force deleted including all images |
 
-## Manual Execution Trigger
-If you do not want to wait until 10:00 PM UTC to run the script:
-1. Navigate to the **Actions** tab inside your GitHub repository.
-2. Click on **Daily AWS Resource Nuke** from the left navigation pane.
-3. Select the **Run workflow** dropdown button and click execute.
+---
+
+## Regions Covered
+
+```
+us-east-1 / us-east-2 / us-west-1 / us-west-2
+eu-west-1 / eu-central-1
+ap-southeast-1 / ap-northeast-1
+```
+
+> Edit `scripts/cleanup-all-regions.sh` to add or remove regions.
+
+---
+
+## Project Structure
+
+```
+aws-cleanup/
+├── .github/
+│   └── workflows/
+│       └── midnight-cleanup.yml    # GitHub Actions workflow — the scheduler
+├── scripts/
+│   ├── cleanup.sh                  # Cleans one region
+│   └── cleanup-all-regions.sh     # Loops through all regions
+├── config/
+│   └── iam-policy.json            # IAM policy for the cleanup user
+└── README.md
+```
+
+---
+
+## Setup
+
+### Step 1 — Create a Dedicated IAM User
+
+> Create the IAM user for the cleanup bot
+
+```bash
+aws iam create-user --user-name aws-cleanup-bot
+```
+
+> Create the IAM policy from the provided file — replace YOUR_ACCOUNT_ID
+
+```bash
+aws iam create-policy \
+  --policy-name AWSCleanupPolicy \
+  --policy-document file://config/iam-policy.json
+```
+
+> Attach the policy to the cleanup user
+
+```bash
+aws iam attach-user-policy \
+  --user-name aws-cleanup-bot \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/AWSCleanupPolicy
+```
+
+> Generate access keys save the output, you'll need it in the next step
+
+```bash
+aws iam create-access-key --user-name aws-cleanup-bot
+```
+
+---
+
+### Step 2 — Add AWS Credentials to GitHub Secrets
+
+> Never hardcode credentials in the repo. Store them as GitHub Secrets.
+
+Go to your GitHub repository:
+
+```
+Settings → Secrets and variables → Actions → New repository secret
+```
+
+Add these two secrets:
+
+| Secret Name | Value |
+|-------------|-------|
+| `AWS_ACCESS_KEY_ID` | Access key from Step 1 |
+| `AWS_SECRET_ACCESS_KEY` | Secret key from Step 1 |
+
+---
+
+### Step 3 Push the Repo to GitHub
+
+> Initialize git if not already done
+
+```bash
+git init
+git add .
+git commit -m "feat: add AWS midnight cleanup workflow"
+```
+
+> Add your GitHub remote and push
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/aws-cleanup.git
+git branch -M main
+git push -u origin main
+```
+
+> Make sure the repository is set to **Private** it contains your workflow config.
+
+---
+
+### Step 4 — Verify the Workflow is Registered
+
+> Go to your repository on GitHub and click the **Actions** tab.
+> You should see **AWS Midnight Cleanup** listed as a workflow.
+
+---
+
+## Running Manually
+
+You can trigger the cleanup at any time without waiting for midnight.
+
+> Go to: `Actions → AWS Midnight Cleanup → Run workflow → Run workflow`
+
+Or trigger it via CLI:
+
+> Trigger the workflow manually using the GitHub CLI
+
+```bash
+gh workflow run midnight-cleanup.yml
+```
+
+> Watch the run live in the terminal
+
+```bash
+gh run watch
+```
+
+---
+
+## Viewing Logs
+
+After each run, logs are uploaded as **workflow artifacts** and kept for 30 days.
+
+> Go to: `Actions → AWS Midnight Cleanup → click a run → Artifacts → cleanup-logs`
+
+Or download via CLI:
+
+> List recent workflow runs
+
+```bash
+gh run list --workflow=midnight-cleanup.yml
+```
+
+> Download logs from a specific run — replace RUN_ID
+
+```bash
+gh run download RUN_ID
+```
+
+---
+
+## Changing the Schedule
+
+> Edit `.github/workflows/midnight-cleanup.yml` and update the cron line
+
+```yaml
+on:
+  schedule:
+    - cron: "0 0 * * *"    # midnight UTC every day
+    - cron: "0 22 * * *"   # 10 PM UTC every day
+    - cron: "0 0 * * 1"    # midnight UTC every Monday only
+```
+
+> Cron runs on UTC time. Convert your local timezone:
+> UTC+1 midnight = "0 23 * * *" | UTC+2 midnight = "0 22 * * *" | UTC+3 midnight = "0 21 * * *"
+
+---
+
+## Add Tag-Based Protection (Optional)
+
+> To only delete resources tagged as dev or staging — edit the EC2 section in `cleanup.sh`
+
+```bash
+INSTANCE_IDS=$(aws ec2 describe-instances \
+  --region "$REGION" \
+  --filters \
+    "Name=instance-state-name,Values=running,stopped" \
+    "Name=tag:Environment,Values=dev,staging,test" \
+  --query "Reservations[*].Instances[*].InstanceId" \
+  --output text)
+```
+
+> Tag your resources so only non-production ones get cleaned up
+
+```bash
+aws ec2 create-tags \
+  --resources i-1234567890abcdef0 \
+  --tags Key=Environment,Value=dev
+```
+
+---
+
+## ⚠️ Important Warnings
+
+> **This workflow is destructive and irreversible.**
+
+- Only use this on **dev or sandbox AWS accounts** — never production
+- S3 buckets are **permanently deleted** including all objects
+- RDS instances are deleted **with no final snapshot** — all data is lost
+- EKS clusters are fully torn down including all workloads
+- Always confirm `aws sts get-caller-identity` points to the right account before running manually
+
+---
+
+## Cost
+
+| Resource | Cost |
+|----------|------|
+| GitHub Actions (public repo) | Free — unlimited minutes |
+| GitHub Actions (private repo) | Free — ~60–90 min/month used, well within 2,000 free minutes |
+| AWS resources created by this bot | None — it creates nothing |
