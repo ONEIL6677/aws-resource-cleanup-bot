@@ -7,20 +7,19 @@ echo "========================================="
 echo "   STARTING AWS RESOURCE CLEANUP"
 echo "========================================="
 
-# 1. Fetch the stable release of aws-nuke binary
-echo "Downloading aws-nuke..."
-wget -q https://github.com
+# 1. Fetch the latest release asset download URL dynamically from GitHub API
+echo "Locating the latest release package..."
+LATEST_URL=$(curl -s https://github.com | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
 
-# 2. Extract the binary file and dynamically handle naming
+echo "Downloading latest aws-nuke from: $LATEST_URL"
+wget -q "$LATEST_URL" -O aws-nuke-latest.tar.gz
+
+# 2. Extract the binary file and assign standard execution permissions
 echo "Extracting binary components..."
-tar -xzf aws-nuke-v2.24.2-linux-amd64.tar.gz
-mv aws-nuke-v2.24.2-linux-amd64 aws-nuke 2>/dev/null || true
-chmod +x aws-nuke
+tar -xzf aws-nuke-latest.tar.gz
 
-
-# 2. Extract the binary file
-tar -xzf aws-nuke-v2.25.0-linux-amd64.tar.gz
-mv aws-nuke-v2.25.0-linux-amd64 aws-nuke
+# Find the extracted file dynamically and rename it cleanly to 'aws-nuke'
+mv aws-nuke-v*linux-amd64 aws-nuke 2>/dev/null || mv aws-nuke 2>/dev/null || true
 chmod +x aws-nuke
 
 # 3. Verify AWS authentication credentials are active
@@ -28,10 +27,9 @@ echo "Verifying AWS Caller Identity..."
 aws sts get-caller-identity
 
 # 4. Run aws-nuke using the local configuration file.
-# --no-alias-check bypasses the safety prompt requiring an account alias.
-# --no-dry-run executes actual destructive deletion instead of a preview.
+# Note: Version 3 requires the 'run' subcommand to execute the cleanup.
 echo "Executing destructive resource wipe..."
-./aws-nuke -c nuke-config.yaml --no-alias-check --no-dry-run
+./aws-nuke run -c nuke-config.yaml --no-alias-check --no-dry-run
 
 echo "========================================="
 echo "   AWS ACCOUNT CLEANUP COMPLETED"
