@@ -1,4 +1,3 @@
-# nuke-config.yaml
 bypass-alias-check-accounts:
   - "098217739820"
 regions:
@@ -11,15 +10,14 @@ regions:
   - eu-central-1
   - ap-southeast-1
   - ap-northeast-1
-  # Add any other active regions you want to clean up here
 
-# Safely prevent accidental targeting of production accounts
+# Clear out or use a dummy placeholder for the blocklist
 account-blocklist:
-  - "098217739820" # Replace with your production account ID if you have one
+  - "000000000000" 
 
 accounts:
-  "098217739820": # REPLACE THIS WITH YOUR TARGET AWS ACCOUNT ID
+  "098217739820": 
     filters:
       IAMUser:
         - type: "glob"
-          value: "*" # This rule explicitly catches and protects ALL IAM users
+          value: "*" 
