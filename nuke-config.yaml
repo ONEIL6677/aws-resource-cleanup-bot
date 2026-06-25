@@ -21,3 +21,16 @@ accounts:
       IAMUser:
         - type: "glob"
           value: "*" 
+accounts:
+  "098217739820":
+    filters:
+      IAMUser:
+        - type: "glob"
+          value: "*"
+      # Add these lines to skip scanning millions of objects/items:
+      S3Object:
+        - type: "glob"
+          value: "*"
+      DynamoDBTableItem:
+        - type: "glob"
+          value: "*"
