@@ -16,7 +16,7 @@ account-blocklist:
   - "098217739820" # Replace with your production account ID if you have one
 
 accounts:
-  "123456789012": # REPLACE THIS WITH YOUR TARGET AWS ACCOUNT ID
+  "098217739820": # REPLACE THIS WITH YOUR TARGET AWS ACCOUNT ID
     filters:
       IAMUser:
         - type: "glob"
