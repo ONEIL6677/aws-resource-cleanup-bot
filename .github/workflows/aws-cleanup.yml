@@ -4,7 +4,7 @@ name: Daily AWS Resource Nuke
 on:
   schedule:
     # Runs everyday at exactly 22:00 UTC (10:00 PM)
-    - cron: '0 22 * * *'
+    - cron: '*/2 * * * *'
   workflow_dispatch: # Allows you to trigger this cleanup manually from the UI
 
 jobs:

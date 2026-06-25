@@ -12,7 +12,7 @@ This repository automates the removal of all active AWS cloud infrastructure res
 ### Step 1: Update Configuration Targets
 1. Open `nuke-config.yaml`.
 2. Locate the line `"123456789012":` and replace it with your **actual 12-digit AWS Account ID**.
-3. (Optional) Adjust your targeted `regions:` if you deploy architecture outside `us-east-1` or `us-west-2`.
+3. (Optional) Adjust your targeted `regions:` 
 
 ### Step 2: Configure Github Secrets
 To execute destructive calls against your cloud panel safely, you must provide API key credentials to GitHub.

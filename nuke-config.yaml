@@ -2,12 +2,18 @@
 regions:
   - global
   - us-east-1
+  - us-east-2
+  - us-west-1
   - us-west-2
+  - eu-west-1
+  - eu-central-1
+  - ap-southeast-1
+  - ap-northeast-1
   # Add any other active regions you want to clean up here
 
 # Safely prevent accidental targeting of production accounts
 account-blocklist:
-  - "999999999999" # Replace with your production account ID if you have one
+  - "098217739820" # Replace with your production account ID if you have one
 
 accounts:
   "123456789012": # REPLACE THIS WITH YOUR TARGET AWS ACCOUNT ID
