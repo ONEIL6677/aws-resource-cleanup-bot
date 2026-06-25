@@ -295,6 +295,75 @@ for REPO in $REPOS; do
 done
 
 # ─────────────────────────────────────────
+# VPCs
+# ─────────────────────────────────────────
+log "--- Deleting VPCs ---"
+
+VPC_IDS=$(aws ec2 describe-vpcs \
+  --region "$REGION" \
+  --filters "Name=isDefault,Values=false" \
+  --query "Vpcs[*].VpcId" \
+  --output text 2>/dev/null || echo "")
+
+for VPC in $VPC_IDS; do
+  log "Cleaning up VPC: $VPC"
+
+  IGW_IDS=$(aws ec2 describe-internet-gateways \
+    --region "$REGION" \
+    --filters "Name=attachment.vpc-id,Values=$VPC" \
+    --query "InternetGateways[*].InternetGatewayId" \
+    --output text)
+  for IGW in $IGW_IDS; do
+    aws ec2 detach-internet-gateway --internet-gateway-id "$IGW" --vpc-id "$VPC" --region "$REGION"
+    aws ec2 delete-internet-gateway --internet-gateway-id "$IGW" --region "$REGION"
+    log "Deleted IGW: $IGW"
+  done
+
+  SUBNET_IDS=$(aws ec2 describe-subnets \
+    --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC" \
+    --query "Subnets[*].SubnetId" \
+    --output text)
+  for SUBNET in $SUBNET_IDS; do
+    aws ec2 delete-subnet --subnet-id "$SUBNET" --region "$REGION"
+    log "Deleted subnet: $SUBNET"
+  done
+
+  RT_IDS=$(aws ec2 describe-route-tables \
+    --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC" \
+    --query "RouteTables[?Associations[?Main==\`false\`]].RouteTableId" \
+    --output text)
+  for RT in $RT_IDS; do
+    aws ec2 delete-route-table --route-table-id "$RT" --region "$REGION"
+    log "Deleted route table: $RT"
+  done
+
+  SG_IDS=$(aws ec2 describe-security-groups \
+    --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC" \
+    --query "SecurityGroups[?GroupName!='default'].GroupId" \
+    --output text)
+  for SG in $SG_IDS; do
+    aws ec2 delete-security-group --group-id "$SG" --region "$REGION"
+    log "Deleted security group: $SG"
+  done
+
+  NACL_IDS=$(aws ec2 describe-network-acls \
+    --region "$REGION" \
+    --filters "Name=vpc-id,Values=$VPC" \
+    --query "NetworkAcls[?IsDefault==\`false\`].NetworkAclId" \
+    --output text)
+  for NACL in $NACL_IDS; do
+    aws ec2 delete-network-acl --network-acl-id "$NACL" --region "$REGION"
+    log "Deleted NACL: $NACL"
+  done
+
+  aws ec2 delete-vpc --vpc-id "$VPC" --region "$REGION"
+  log "Deleted VPC: $VPC"
+done
+
+# ─────────────────────────────────────────
 # DONE
 # ─────────────────────────────────────────
 log "========================================"
