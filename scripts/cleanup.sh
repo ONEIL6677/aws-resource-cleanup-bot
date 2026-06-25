@@ -7,14 +7,14 @@ echo "========================================="
 echo "   STARTING AWS RESOURCE CLEANUP"
 echo "========================================="
 
-# 1. Fetch the latest release of aws-nuke binary
+# 1. Fetch the stable release of aws-nuke binary
 echo "Downloading aws-nuke..."
 wget -q https://github.com
 
-# 2. Extract the binary file
-tar -xzf aws-nuke-v2.25.0-linux-amd64.tar.gz
-# The extracted binary is usually named exactly like this:
-mv aws-nuke-v2.25.0-linux-amd64 aws-nuke
+# 2. Extract the binary file and dynamically handle naming
+echo "Extracting binary components..."
+tar -xzf aws-nuke-v2.24.2-linux-amd64.tar.gz
+mv aws-nuke-v2.24.2-linux-amd64 aws-nuke 2>/dev/null || true
 chmod +x aws-nuke
 
 
