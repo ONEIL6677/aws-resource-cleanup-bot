@@ -94,8 +94,12 @@ aws iam create-policy \
   --policy-name AWSCleanupPolicy \
   --policy-document file://config/iam-policy.json
 ```
-
+> run this command to get your account ID
+```bash
+aws sts get-caller-identity --query Account --output text
+```
 > Attach the policy to the cleanup user
+> replace the account id section with your account id
 
 ```bash
 aws iam attach-user-policy \
@@ -148,11 +152,7 @@ git branch -M main
 git push -u origin main
 ```
 
-> Make sure the repository is set to **Private** it contains your workflow config.
-
----
-
-### Step 4 — Verify the Workflow is Registered
+### Step 4 Verify the Workflow is Registered
 
 > Go to your repository on GitHub and click the **Actions** tab.
 > You should see **AWS Midnight Cleanup** listed as a workflow.
