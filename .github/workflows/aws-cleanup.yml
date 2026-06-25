@@ -2,7 +2,7 @@ name: Daily AWS Resource Nuke
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Changed to 5 min minimum limit to satisfy GitHub's engine
+    - cron: '*/5 * * * *'
   workflow_dispatch: 
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
           echo "Locating the latest release package..."
           LATEST_URL=$(curl -s https://github.com | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
           
-          echo "Downloading latest aws-nuke..."
+          echo "Downloading latest aws-nuke from: $LATEST_URL"
           wget -q "$LATEST_URL" -O aws-nuke-latest.tar.gz
           
           echo "Extracting binary components..."
